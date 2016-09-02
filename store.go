@@ -44,10 +44,10 @@ type Store interface {
 
 type ThumbnailStore interface {
 	// Upload a thumbnail, and link it to the image with the given ID
-	LinkThumb(ID, io.Reader) error
+	LinkThumb(ID, Size, io.Reader) (Thumbnail, error)
 	// Retrieve the metadata about this thumbnail
-	RetrieveThumb(ID) ([]Thumbnail, error)
+	RetrieveThumbs(ID) ([]Thumbnail, error)
 	// Download a thumbnail matching the given size. Returns a not found error
 	// if no such sized thumbnail exists
-	DownloadThumb(ID, Size) (io.Reader, error)
+	DownloadThumb(Thumbnail) (io.Reader, error)
 }

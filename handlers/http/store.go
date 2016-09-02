@@ -3,7 +3,6 @@ package http
 import (
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/denbeigh2000/imstor"
@@ -20,16 +19,22 @@ type Handler struct {
 func NewHandler(store imstor.Store) *Handler {
 	router := mux.NewRouter()
 
+	thumbStore, ok := store.(imstor.ThumbnailStore)
+	if ok {
+		thumbnailHandler := NewThumbnailHandler(thumbStore)
+		router.PathPrefix("/thumb/").Handler(thumbnailHandler)
+	}
+
 	handler := &Handler{
 		Store:  store,
 		router: router,
 	}
 
-	router.HandleFunc("/", handler.CreateImage).Methods("POST")
-	router.HandleFunc("/{id}", handler.RetrieveImage).Methods("GET")
+	router.HandleFunc("/", handler.CreateImage).Methods(http.MethodPost)
+	router.HandleFunc("/{id}", handler.RetrieveImage).Methods(http.MethodGet)
 	// not today
 	// router.HandleFunc("/{id}", handler.UploadImage).Methods("PUT")
-	router.HandleFunc("/download/{id}", handler.DownloadImage).Methods("GET")
+	router.HandleFunc("/{id}/download", handler.DownloadImage).Methods(http.MethodGet)
 
 	return handler
 }
@@ -80,8 +85,7 @@ func (h *Handler) DownloadImage(w http.ResponseWriter, r *http.Request) {
 	reader, err := h.Download(imageID)
 	switch err.(type) {
 	case nil:
-		n, err := io.Copy(w, reader)
-		log.Printf("Wrote %v bytes with error %v", n, err)
+		_, err := io.Copy(w, reader)
 		if err != nil {
 			// Not much we can do here - we've already written a successful
 			// status code, and http.Server will catch this for us.

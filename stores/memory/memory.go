@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"io/ioutil"
-	"log"
 	"sync"
 
 	"github.com/denbeigh2000/imstor"
@@ -72,7 +71,8 @@ func (s *store) Create() (imstor.ID, error) {
 	key := s.key()
 
 	entry := storeEntry{
-		Image: imstor.NewImage(key),
+		Image:  imstor.NewImage(key),
+		Thumbs: make(map[string]thumbEntry),
 	}
 
 	s.Lock()
@@ -96,8 +96,6 @@ func (s *store) Upload(key imstor.ID, r io.Reader) (imstor.Image, error) {
 	if err != nil {
 		return img, err
 	}
-
-	log.Printf("Read %v bytes of image", len(data))
 
 	s.Lock()
 	defer s.Unlock()
@@ -138,25 +136,30 @@ func (s *store) Download(key imstor.ID) (io.Reader, error) {
 	return bytes.NewReader(entry.Data), nil
 }
 
-func (s *store) LinkThumb(t imstor.Thumbnail, r io.Reader) error {
-	if !s.uploaded(t.Parent) {
-		return imstor.KeyNotFoundErr(t.Parent)
+func (s *store) LinkThumb(ID imstor.ID, size imstor.Size, r io.Reader) (t imstor.Thumbnail, err error) {
+	if !s.uploaded(ID) {
+		err = imstor.KeyNotFoundErr(ID)
+		return
 	}
+
+	t.Parent = ID
+	t.Size = size
 
 	thumbKey := t.Key()
 
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
-		return err
+		return
 	}
 
 	s.Lock()
 	defer s.Unlock()
 
-	entry := s.store[t.Parent]
+	entry := s.store[ID]
 	_, ok := entry.Thumbs[thumbKey]
 	if ok {
-		return imstor.ThumbnailExistsErr(thumbKey)
+		err = imstor.ThumbnailExistsErr(thumbKey)
+		return
 	}
 
 	entry.Thumbs[thumbKey] = thumbEntry{
@@ -166,7 +169,7 @@ func (s *store) LinkThumb(t imstor.Thumbnail, r io.Reader) error {
 
 	s.store[t.Parent] = entry
 
-	return nil
+	return t, nil
 }
 
 func (s *store) RetrieveThumbs(ID imstor.ID) ([]imstor.Thumbnail, error) {
