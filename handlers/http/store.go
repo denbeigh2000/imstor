@@ -1,10 +1,8 @@
 package http
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 
@@ -65,15 +63,7 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	buf, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	reader := bytes.NewReader(buf)
-
-	img, err := h.Upload(imageID, reader)
+	img, err := h.Upload(imageID, r.Body)
 	switch err.(type) {
 	case nil:
 		json.NewEncoder(w).Encode(img)
