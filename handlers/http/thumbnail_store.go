@@ -6,25 +6,26 @@ import (
 	"net/http"
 
 	"github.com/denbeigh2000/imstor"
+	app "github.com/denbeigh2000/imstor/app"
 
 	"github.com/gorilla/mux"
 )
 
 type ThumbnailHandler struct {
-	imstor.ThumbnailStore
+	app.UserThumbnailAPI
 
 	router *mux.Router
 }
 
-func NewThumbnailHandler(store imstor.ThumbnailStore) *ThumbnailHandler {
+func NewThumbnailHandler(a app.UserThumbnailAPI) *ThumbnailHandler {
 	handler := &ThumbnailHandler{
-		ThumbnailStore: store,
+		UserThumbnailAPI: a,
 	}
 
 	router := mux.NewRouter()
 
 	router.HandleFunc("/thumb/{id}", handler.HandleRetrieve).Methods(http.MethodGet)
-	router.HandleFunc("/thumb/{id}/{size}", handler.HandleLink).Methods(http.MethodPut)
+	// router.HandleFunc("/thumb/{id}/{size}", handler.HandleLink).Methods(http.MethodPut)
 	router.HandleFunc("/thumb/{id}/{size}/download", handler.HandleDownload).Methods(http.MethodGet)
 
 	handler.router = router
@@ -36,28 +37,29 @@ func (h *ThumbnailHandler) vars(r *http.Request) map[string]string {
 	return mux.Vars(r)
 }
 
-func (h *ThumbnailHandler) HandleLink(w http.ResponseWriter, r *http.Request) {
-	imageID := imstor.ID(h.vars(r)["id"])
-	size, err := imstor.FromKey(h.vars(r)["size"])
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-	}
-
-	thumb, err := h.LinkThumb(imageID, size, r.Body)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
-
-	err = json.NewEncoder(w).Encode(thumb)
-	if err != nil {
-		panic(err)
-	}
-}
+// Not deleting yet so I have something to reference when I write a HTTP API for the store
+// func (h *ThumbnailHandler) HandleLink(w http.ResponseWriter, r *http.Request) {
+// 	imageID := imstor.ID(h.vars(r)["id"])
+// 	size, err := imstor.FromKey(h.vars(r)["size"])
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusBadRequest)
+// 	}
+//
+// 	thumb, err := h.LinkThumb(imageID, size, r.Body)
+// 	if err != nil {
+// 		http.Error(w, err.Error(), http.StatusInternalServerError)
+// 	}
+//
+// 	err = json.NewEncoder(w).Encode(thumb)
+// 	if err != nil {
+// 		panic(err)
+// 	}
+// }
 
 func (h *ThumbnailHandler) HandleRetrieve(w http.ResponseWriter, r *http.Request) {
 	imageID := imstor.ID(h.vars(r)["id"])
 
-	thumbs, err := h.RetrieveThumbs(imageID)
+	thumbs, err := h.RetrieveThumbnails(imageID)
 	switch err.(type) {
 	case nil:
 		json.NewEncoder(w).Encode(thumbs)
@@ -77,7 +79,7 @@ func (h *ThumbnailHandler) HandleDownload(w http.ResponseWriter, r *http.Request
 
 	thumb := imstor.Thumbnail{Parent: imageID, Size: size}
 
-	reader, err := h.DownloadThumb(thumb)
+	reader, err := h.DownloadThumbnail(thumb)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}

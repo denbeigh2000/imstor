@@ -3,43 +3,38 @@ package http
 import (
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/denbeigh2000/imstor"
+	app "github.com/denbeigh2000/imstor/app"
 
 	"github.com/gorilla/mux"
 )
 
 type Handler struct {
-	imstor.Store
+	app.UserImageAPI
 
 	router *mux.Router
 }
 
-func NewHandler(store imstor.Store) *Handler {
+func NewHandler(a app.UserImageAPI) *Handler {
 	router := mux.NewRouter()
 
-	thumbStore, ok := store.(imstor.ThumbnailStore)
-	if ok {
-		thumbnailHandler := NewThumbnailHandler(thumbStore)
-		router.PathPrefix("/thumb/").Handler(thumbnailHandler)
-	}
-
 	handler := &Handler{
-		Store:  store,
-		router: router,
+		UserImageAPI: a,
+		router:       router,
 	}
 
-	router.HandleFunc("/", handler.CreateImage).Methods(http.MethodPost)
-	router.HandleFunc("/{id}", handler.RetrieveImage).Methods(http.MethodGet)
-	// not today
-	// router.HandleFunc("/{id}", handler.UploadImage).Methods("PUT")
-	router.HandleFunc("/{id}/download", handler.DownloadImage).Methods(http.MethodGet)
+	router.HandleFunc("/", handler.HandleCreate).Methods(http.MethodPost)
+	router.HandleFunc("/{id}", handler.HandleRetrieve).Methods(http.MethodGet)
+	router.HandleFunc("/{id}/download", handler.HandleDownload).Methods(http.MethodGet)
 
 	return handler
 }
 
 func (h *Handler) vars(r *http.Request) map[string]string {
+	log.Println("Serving HTTP!")
 	return mux.Vars(r)
 }
 
@@ -47,9 +42,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.router.ServeHTTP(w, r)
 }
 
-func (h *Handler) RetrieveImage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleRetrieve(w http.ResponseWriter, r *http.Request) {
 	imageID := imstor.ID(h.vars(r)["id"])
-	image, err := h.Retrieve(imageID)
+	image, err := h.RetrieveImage(imageID)
 
 	switch err.(type) {
 	case nil:
@@ -61,14 +56,9 @@ func (h *Handler) RetrieveImage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
-	imageID, err := h.Create()
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
+	img, err := h.CreateImage(r.Body)
 
-	img, err := h.Upload(imageID, r.Body)
 	switch err.(type) {
 	case nil:
 		json.NewEncoder(w).Encode(img)
@@ -79,10 +69,10 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *Handler) DownloadImage(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) HandleDownload(w http.ResponseWriter, r *http.Request) {
 	imageID := imstor.ID(h.vars(r)["id"])
 
-	reader, err := h.Download(imageID)
+	reader, err := h.DownloadImage(imageID)
 	switch err.(type) {
 	case nil:
 		_, err := io.Copy(w, reader)

@@ -1,18 +1,22 @@
 package main
 
 import (
-	"log"
-	"net/http"
-
-	imstorHTTP "github.com/denbeigh2000/imstor/handlers/http"
+	imstorLib "github.com/denbeigh2000/imstor"
+	"github.com/denbeigh2000/imstor/app"
+	"github.com/denbeigh2000/imstor/handlers/http"
 	"github.com/denbeigh2000/imstor/stores/memory"
 )
 
 func main() {
-	server := http.Server{
-		Addr:    ":8080",
-		Handler: imstorHTTP.NewHandler(memory.NewStore()),
+	store := memory.NewStore()
+	httpAPI := http.HTTPAPI{}
+
+	userAPI := imstor.NewUserAPI(store, store.(imstorLib.ThumbnailStore))
+
+	imstorApp := imstor.Imstor{
+		UserAPI: userAPI,
+		Servers: []imstor.Server{httpAPI},
 	}
 
-	log.Fatal(server.ListenAndServe())
+	imstorApp.Serve()
 }
