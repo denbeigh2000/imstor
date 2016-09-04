@@ -4,6 +4,8 @@ import (
 	"io"
 
 	"github.com/denbeigh2000/imstor"
+	"github.com/denbeigh2000/imstor/thumbnailer"
+	"github.com/denbeigh2000/imstor/thumbnailer/thumbnailers"
 )
 
 // Server is able to translate incoming requests to corresponding calls to the
@@ -13,7 +15,12 @@ type Server interface {
 }
 
 func NewUserAPI(img imstor.Store, thumb imstor.ThumbnailStore) UserAPI {
-	imgAPI := userImageAPI{Store: img}
+	thumber := thumbnailers.NewLocalThumbnailer(
+		thumbnailer.NewLocal(),
+		img, thumb, 10,
+	)
+
+	imgAPI := userImageAPI{Store: img, Thumbnailer: thumber}
 	thumbAPI := userThumbnailAPI{ThumbnailStore: thumb}
 
 	return userAPI{
@@ -46,7 +53,8 @@ type UserThumbnailAPI interface {
 }
 
 type userImageAPI struct {
-	Store imstor.Store
+	Store       imstor.Store
+	Thumbnailer thumbnailer.AsyncThumbnailer
 }
 
 func (a userImageAPI) CreateImage(r io.Reader) (imstor.Image, error) {
@@ -60,7 +68,10 @@ func (a userImageAPI) CreateImage(r io.Reader) (imstor.Image, error) {
 		return imstor.Image{}, err
 	}
 
-	// TODO: Trigger thumbnailing job here
+	a.Thumbnailer.Queue(thumbnailer.Request{
+		ID:   imageID,
+		Size: imstor.Size{LongEdge: 300},
+	})
 
 	return img, nil
 }

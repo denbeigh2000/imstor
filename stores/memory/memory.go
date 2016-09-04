@@ -2,8 +2,10 @@ package memory
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"sync"
 
 	"github.com/denbeigh2000/imstor"
@@ -92,18 +94,28 @@ func (s *store) Upload(key imstor.ID, r io.Reader) (imstor.Image, error) {
 		return img, imstor.AlreadyUploadedErr(key)
 	}
 
+	log.Printf("%v: Reading", key)
+
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
 		return img, err
 	}
 
+	if len(data) == 0 {
+		return imstor.Image{}, imstor.EmptyBodyErr{}
+	}
+
 	s.Lock()
 	defer s.Unlock()
+
+	log.Printf("%v: Storing", key)
 
 	entry := s.store[key]
 	entry.Data = data
 	s.store[key] = entry
 	img = entry.Image
+
+	log.Printf("%v: Full-size upload completed", key)
 
 	return img, nil
 }
@@ -146,6 +158,11 @@ func (s *store) LinkThumb(ID imstor.ID, size imstor.Size, r io.Reader) (t imstor
 	t.Size = size
 
 	thumbKey := t.Key()
+
+	if r == nil {
+		err = fmt.Errorf("Failed to store thumbnail for image %v, empty body", ID)
+		return
+	}
 
 	data, err := ioutil.ReadAll(r)
 	if err != nil {

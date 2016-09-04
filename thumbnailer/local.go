@@ -7,10 +7,9 @@ import (
 	"github.com/nfnt/resize"
 
 	"github.com/denbeigh2000/imstor"
-	"github.com/denbeigh2000/imstor/thumbnailer"
 )
 
-func NewLocal() thumbnailer.Thumbnailer {
+func NewLocal() Thumbnailer {
 	return Local{}
 }
 

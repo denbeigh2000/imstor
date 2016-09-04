@@ -62,7 +62,7 @@ func (h *Handler) HandleCreate(w http.ResponseWriter, r *http.Request) {
 	switch err.(type) {
 	case nil:
 		json.NewEncoder(w).Encode(img)
-	case imstor.AlreadyUploadedErr:
+	case imstor.AlreadyUploadedErr, imstor.EmptyBodyErr:
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	default:
 		http.Error(w, err.Error(), http.StatusInternalServerError)

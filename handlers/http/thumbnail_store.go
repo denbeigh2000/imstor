@@ -2,6 +2,7 @@ package http
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -82,6 +83,10 @@ func (h *ThumbnailHandler) HandleDownload(w http.ResponseWriter, r *http.Request
 	reader, err := h.DownloadThumbnail(thumb)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+
+	if reader == nil {
+		http.Error(w, fmt.Sprintf("Item %v should be here, but it is empty for some reason.", imageID), http.StatusInternalServerError)
 	}
 
 	_, err = io.Copy(w, reader)
