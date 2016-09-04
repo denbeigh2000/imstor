@@ -9,6 +9,7 @@ import (
 	"sync"
 
 	"github.com/denbeigh2000/imstor"
+
 	"github.com/satori/go.uuid"
 )
 
@@ -132,7 +133,7 @@ func (s *store) Retrieve(key imstor.ID) (imstor.Image, error) {
 	return entry.Image, nil
 }
 
-func (s *store) Download(key imstor.ID) (io.Reader, error) {
+func (s *store) Download(key imstor.ID) (io.ReadCloser, error) {
 	s.RLock()
 	defer s.RUnlock()
 
@@ -145,7 +146,7 @@ func (s *store) Download(key imstor.ID) (io.Reader, error) {
 		return nil, imstor.NotUploadedYetErr(key)
 	}
 
-	return bytes.NewReader(entry.Data), nil
+	return ioutil.NopCloser(bytes.NewReader(entry.Data)), nil
 }
 
 func (s *store) LinkThumb(ID imstor.ID, size imstor.Size, r io.Reader) (t imstor.Thumbnail, err error) {
@@ -209,7 +210,7 @@ func (s *store) RetrieveThumbs(ID imstor.ID) ([]imstor.Thumbnail, error) {
 	return thumbsCopy, nil
 }
 
-func (s *store) DownloadThumb(t imstor.Thumbnail) (io.Reader, error) {
+func (s *store) DownloadThumb(t imstor.Thumbnail) (io.ReadCloser, error) {
 	entry, ok := s.retrieve(t.Parent)
 	if !ok {
 		return nil, imstor.KeyNotFoundErr(t.Parent)
@@ -224,5 +225,5 @@ func (s *store) DownloadThumb(t imstor.Thumbnail) (io.Reader, error) {
 	// Prevent people from changing this buffer while we stream
 	s.RLock()
 	defer s.RUnlock()
-	return bytes.NewReader(thumb.Data), nil
+	return ioutil.NopCloser(bytes.NewReader(thumb.Data)), nil
 }

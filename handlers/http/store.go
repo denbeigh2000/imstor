@@ -75,6 +75,7 @@ func (h *Handler) HandleDownload(w http.ResponseWriter, r *http.Request) {
 	reader, err := h.DownloadImage(imageID)
 	switch err.(type) {
 	case nil:
+		defer reader.Close()
 		_, err := io.Copy(w, reader)
 		if err != nil {
 			// Not much we can do here - we've already written a successful

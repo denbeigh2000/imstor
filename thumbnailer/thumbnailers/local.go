@@ -1,6 +1,7 @@
 package thumbnailers
 
 import (
+	"io"
 	"log"
 	"sync"
 
@@ -8,7 +9,7 @@ import (
 	"github.com/denbeigh2000/imstor/thumbnailer"
 )
 
-const DefaultConcurrency = 12
+const DefaultConcurrency = 4
 
 func NewLocalThumbnailer(t thumbnailer.Thumbnailer, source imstor.ImageSource, sink imstor.ThumbnailSink, bufferSize int) thumbnailer.AsyncThumbnailer {
 	thumber := local{
@@ -44,6 +45,13 @@ func (l local) Queue(req thumbnailer.Request) {
 	l.in <- req
 }
 
+func (l local) extractThumbnail(r io.ReadCloser, size imstor.Size) (io.Reader, error) {
+	defer r.Close()
+
+	result, err := l.Thumbnail(r, size)
+	return result, err
+}
+
 func (l local) loop() {
 	concurrency := l.Concurrency
 	if concurrency == 0 {
@@ -58,15 +66,19 @@ func (l local) loop() {
 			log.Printf("Waiting for thumbnail requests...")
 			for req := range l.in {
 				log.Printf("%v: Received thumbnail request", req.ID)
-				log.Printf("%v: Downloading image", req.ID)
+				log.Printf("%v: Downloading image for thumbnail", req.ID)
 				img, err := l.Download(req.ID)
 				if err != nil {
 					l.errs <- err
 					continue
 				}
 				log.Printf("%v: Thumbnailing", req.ID)
-				result, err := l.Thumbnail(img, req.Size)
-				log.Printf("%v: Queueing for upload", req.ID)
+				result, err := l.extractThumbnail(img, req.Size)
+				if err != nil {
+					l.errs <- err
+					continue
+				}
+				log.Printf("%v: Queuing thumbnail to store", req.ID)
 				l.out <- thumbnailer.Result{
 					Request: req,
 					Reader:  result,
@@ -85,7 +97,7 @@ func (l local) loop() {
 	for i := 0; i < concurrency; i++ {
 		go func() {
 			for res := range l.out {
-				log.Printf("%v: Uploading image", res.ID)
+				log.Printf("%v: Linking thumbnail", res.ID)
 				_, err := l.LinkThumb(res.ID, res.Size, res.Reader)
 				if err != nil {
 					l.errs <- err

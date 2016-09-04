@@ -1,17 +1,19 @@
 package main
 
 import (
-	imstorLib "github.com/denbeigh2000/imstor"
 	"github.com/denbeigh2000/imstor/app"
 	"github.com/denbeigh2000/imstor/handlers/http"
-	"github.com/denbeigh2000/imstor/stores/memory"
+	"github.com/denbeigh2000/imstor/stores/disk"
 )
 
 func main() {
-	store := memory.NewStore()
+	//store := memory.NewStore()
 	httpAPI := http.HTTPAPI{}
 
-	userAPI := imstor.NewUserAPI(store, store.(imstorLib.ThumbnailStore))
+	imageStore := disk.NewStore("./.imstor")
+	thumbStore := disk.NewThumbStore("./.imstor/thumbs")
+
+	userAPI := imstor.NewUserAPI(imageStore, thumbStore)
 
 	imstorApp := imstor.Imstor{
 		UserAPI: userAPI,

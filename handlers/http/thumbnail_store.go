@@ -84,6 +84,7 @@ func (h *ThumbnailHandler) HandleDownload(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+	defer reader.Close()
 
 	if reader == nil {
 		http.Error(w, fmt.Sprintf("Item %v should be here, but it is empty for some reason.", imageID), http.StatusInternalServerError)

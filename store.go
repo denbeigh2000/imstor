@@ -48,7 +48,7 @@ type ImageSink interface {
 
 type ImageSource interface {
 	Retrieve(ID) (Image, error)
-	Download(ID) (io.Reader, error)
+	Download(ID) (io.ReadCloser, error)
 }
 
 type Store interface {
@@ -61,7 +61,7 @@ type ThumbnailSource interface {
 	RetrieveThumbs(ID) ([]Thumbnail, error)
 	// Download a thumbnail matching the given size. Returns a not found error
 	// if no such sized thumbnail exists
-	DownloadThumb(Thumbnail) (io.Reader, error)
+	DownloadThumb(Thumbnail) (io.ReadCloser, error)
 }
 
 type ThumbnailSink interface {

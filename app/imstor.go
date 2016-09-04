@@ -44,12 +44,12 @@ type UserAPI interface {
 type UserImageAPI interface {
 	CreateImage(io.Reader) (imstor.Image, error)
 	RetrieveImage(imstor.ID) (imstor.Image, error)
-	DownloadImage(imstor.ID) (io.Reader, error)
+	DownloadImage(imstor.ID) (io.ReadCloser, error)
 }
 
 type UserThumbnailAPI interface {
 	RetrieveThumbnails(imstor.ID) ([]imstor.Thumbnail, error)
-	DownloadThumbnail(imstor.Thumbnail) (io.Reader, error)
+	DownloadThumbnail(imstor.Thumbnail) (io.ReadCloser, error)
 }
 
 type userImageAPI struct {
@@ -80,7 +80,7 @@ func (a userImageAPI) RetrieveImage(ID imstor.ID) (imstor.Image, error) {
 	return a.Store.Retrieve(ID)
 }
 
-func (a userImageAPI) DownloadImage(ID imstor.ID) (io.Reader, error) {
+func (a userImageAPI) DownloadImage(ID imstor.ID) (io.ReadCloser, error) {
 	return a.Store.Download(ID)
 }
 
@@ -92,6 +92,6 @@ func (a userThumbnailAPI) RetrieveThumbnails(ID imstor.ID) ([]imstor.Thumbnail, 
 	return a.ThumbnailStore.RetrieveThumbs(ID)
 }
 
-func (a userThumbnailAPI) DownloadThumbnail(t imstor.Thumbnail) (io.Reader, error) {
+func (a userThumbnailAPI) DownloadThumbnail(t imstor.Thumbnail) (io.ReadCloser, error) {
 	return a.ThumbnailStore.DownloadThumb(t)
 }
