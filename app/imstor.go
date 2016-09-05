@@ -17,7 +17,7 @@ type Server interface {
 func NewUserAPI(img imstor.Store, thumb imstor.ThumbnailStore) UserAPI {
 	thumber := thumbnailers.NewLocalThumbnailer(
 		thumbnailer.NewLocal(),
-		img, thumb, 10,
+		img, thumb, 50,
 	)
 
 	imgAPI := userImageAPI{Store: img, Thumbnailer: thumber}

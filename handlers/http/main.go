@@ -2,6 +2,7 @@ package http
 
 import (
 	"net/http"
+	_ "net/http/pprof"
 
 	app "github.com/denbeigh2000/imstor/app"
 
@@ -23,6 +24,9 @@ func (a HTTPAPI) Serve(api app.UserAPI) error {
 		Addr:    ":8080",
 		Handler: router,
 	}
+
+	debugServer := http.Server{Addr: ":1337"}
+	go debugServer.ListenAndServe()
 
 	return server.ListenAndServe()
 }
