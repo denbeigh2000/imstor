@@ -19,12 +19,13 @@ func NewLocalThumbnailer(t thumbnailer.Thumbnailer, source imstor.ImageSource, s
 		ImageSource:   source,
 		ThumbnailSink: sink,
 
-		in:  make(chan thumbnailer.Request, bufferSize),
-		out: make(chan thumbnailer.Result, bufferSize),
+		in:   make(chan thumbnailer.Request, bufferSize),
+		out:  make(chan thumbnailer.Result, bufferSize),
+		errs: make(chan error),
 	}
 
-	thumber.loop()
 	go thumber.handleErrs()
+	thumber.loop()
 	return thumber
 }
 
@@ -62,23 +63,20 @@ func (l local) loop() {
 	wg.Add(concurrency)
 
 	for i := 0; i < concurrency; i++ {
-		go func() {
-			log.Printf("Waiting for thumbnail requests...")
+		go func(i int) {
+			log.Printf("%v Waiting for thumbnail requests...", i)
 			for req := range l.in {
-				log.Printf("%v: Received thumbnail request", req.ID)
-				log.Printf("%v: Downloading image for thumbnail", req.ID)
 				img, err := l.Download(req.ID)
 				if err != nil {
 					l.errs <- err
 					continue
 				}
-				log.Printf("%v: Thumbnailing", req.ID)
+				log.Printf("%v: %v Thumbnailing", req.ID, i)
 				result, err := l.extractThumbnail(img, req.Size)
 				if err != nil {
 					l.errs <- err
 					continue
 				}
-				log.Printf("%v: Queuing thumbnail to store", req.ID)
 				l.out <- thumbnailer.Result{
 					Request: req,
 					Reader:  result,
@@ -86,7 +84,7 @@ func (l local) loop() {
 			}
 
 			wg.Done()
-		}()
+		}(i)
 
 		go func() {
 			wg.Wait()
