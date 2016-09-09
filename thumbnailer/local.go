@@ -10,11 +10,19 @@ import (
 )
 
 func NewLocal() Thumbnailer {
-	return Local{}
+	return Local{
+		pngEncoder:  pngEncoder{},
+		jpegEncoder: jpegEncoder{},
+	}
 }
 
 type Local struct {
 	InterpFn resize.InterpolationFunction
+
+	// Encoders (at least the jpeg encoder) have a tendency to leak,
+	// at least the JPEG encoder certainly does.
+	pngEncoder
+	jpegEncoder
 }
 
 func (l Local) decode(src io.Reader) (image.Image, string, error) {
@@ -25,9 +33,9 @@ func (l Local) encode(src image.Image, codec string) (io.Reader, error) {
 	var e encoder
 	switch codec {
 	case "png":
-		e = pngEncoder{}
+		e = l.pngEncoder
 	case "jpg", "jpeg":
-		e = jpegEncoder{}
+		e = l.jpegEncoder
 	}
 
 	return e.Encode(src)
