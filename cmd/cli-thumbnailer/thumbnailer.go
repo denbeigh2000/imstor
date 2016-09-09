@@ -15,7 +15,7 @@ const (
 )
 
 func main() {
-	thumbnailer := thumbnailers.NewLocal()
+	thumbnailer := thumbnailer.NewLocal()
 
 	f, err := os.Open(inFile)
 	if err != nil {

@@ -9,24 +9,37 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type HTTPAPI struct{}
+type HTTPAPI struct {
+	http.Handler
 
-func (a HTTPAPI) Serve(api app.UserAPI) error {
+	Debug bool
+}
+
+func NewHTTPAPI(imageAPI app.UserImageAPI, thumbAPI app.UserThumbnailAPI, debug bool) HTTPAPI {
 	router := mux.NewRouter()
 
-	imageHandler := NewHandler(api.(app.UserImageAPI))
-	thumbHandler := NewThumbnailHandler(api.(app.UserThumbnailAPI))
+	imageHandler := NewHandler(imageAPI)
+	thumbHandler := NewThumbnailHandler(thumbAPI)
 
 	router.PathPrefix("/thumb/").Handler(thumbHandler)
 	router.PathPrefix("/").Handler(imageHandler)
 
+	return HTTPAPI{
+		Handler: router,
+		Debug:   debug,
+	}
+}
+
+func (a HTTPAPI) Serve(api app.UserAPI) error {
 	server := http.Server{
 		Addr:    ":8080",
-		Handler: router,
+		Handler: a,
 	}
 
-	debugServer := http.Server{Addr: ":1337"}
-	go debugServer.ListenAndServe()
+	if a.Debug {
+		debugServer := http.Server{Addr: ":1337"}
+		go debugServer.ListenAndServe()
+	}
 
 	return server.ListenAndServe()
 }
