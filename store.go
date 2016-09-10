@@ -43,7 +43,7 @@ func (e NoSuchThumbnailSizeErr) Error() string {
 
 type ImageSink interface {
 	Create() (ID, error)
-	Upload(ID, io.Reader) (Image, error)
+	Upload(Image, io.Reader) (Image, error)
 }
 
 type ImageSource interface {

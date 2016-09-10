@@ -52,29 +52,62 @@ func (d diskStore) exists(id imstor.ID) bool {
 	return !os.IsNotExist(err)
 }
 
-func (d diskStore) Create() (imstor.ID, error) {
-	id := imstor.ID(uuid.NewV4().String())
-	img := imstor.NewImage(id)
+func (d diskStore) writeMeta(img imstor.Image) error {
+	if string(img.ID) == "" {
+		return fmt.Errorf("Empty ID given")
+	}
 
-	_, path := d.createPath(id)
+	_, path := d.createPath(img.ID)
 
 	f, err := os.Create(path)
 	if err != nil {
-		return imstor.ID(""), err
+		return err
 	}
 	defer f.Close()
 
 	err = json.NewEncoder(f).Encode(img)
 	if err != nil {
-		return imstor.ID(""), err
+		return err
 	}
 
-	log.Printf("%v: Created on disk", id)
+	log.Printf("%v: Created on disk", img.ID)
+
+	return nil
+}
+
+func (d diskStore) getMeta(ID imstor.ID) (imstor.Image, error) {
+	_, path := d.createPath(ID)
+
+	f, err := os.Open(path)
+	if err != nil {
+		return imstor.Image{}, err
+	}
+	defer f.Close()
+
+	img := imstor.Image{}
+	err = json.NewDecoder(f).Decode(&img)
+	if err != nil {
+		return imstor.Image{}, err
+	}
+
+	return img, nil
+}
+
+func (d diskStore) Create() (imstor.ID, error) {
+	id := imstor.ID(uuid.NewV4().String())
+	img := imstor.NewImage(id)
+
+	err := d.writeMeta(img)
+	if err != nil {
+		return imstor.ID(""), err
+	}
 
 	return imstor.ID(id), nil
 }
 
-func (d diskStore) Upload(key imstor.ID, data io.Reader) (imstor.Image, error) {
+func (d diskStore) Upload(img imstor.Image, data io.Reader) (imstor.Image, error) {
+	key := img.ID
+
 	log.Printf("%v: Uploading to disk", key)
 	path, _ := d.createPath(key)
 	f, err := os.Create(path)
@@ -91,9 +124,19 @@ func (d diskStore) Upload(key imstor.ID, data io.Reader) (imstor.Image, error) {
 		return imstor.Image{}, imstor.EmptyBodyErr{}
 	}
 
-	log.Printf("%v: Uploaded to disk", key)
+	// Get metadata for creation time and ensure we don't lose it
+	origMeta, err := d.getMeta(img.ID)
+	if err != nil {
+		return imstor.Image{}, err
+	}
+	img.Added = origMeta.Added
 
-	img := imstor.NewImage(key)
+	err = d.writeMeta(img)
+	if err != nil {
+		return imstor.Image{}, err
+	}
+
+	log.Printf("%v: Uploaded to disk", key)
 	return img, nil
 }
 
@@ -108,6 +151,7 @@ func (d diskStore) Download(key imstor.ID) (io.ReadCloser, error) {
 		// Something something race condition
 		return nil, imstor.KeyNotFoundErr(key)
 	}
+	defer f.Close()
 
 	return f, err
 }
@@ -123,6 +167,7 @@ func (d diskStore) Retrieve(key imstor.ID) (imstor.Image, error) {
 	if err != nil {
 		return imstor.Image{}, err
 	}
+	defer f.Close()
 
 	img := imstor.Image{}
 	err = json.NewDecoder(f).Decode(&img)

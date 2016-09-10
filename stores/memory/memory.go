@@ -85,21 +85,22 @@ func (s *store) Create() (imstor.ID, error) {
 	return key, nil
 }
 
-func (s *store) Upload(key imstor.ID, r io.Reader) (imstor.Image, error) {
-	var img imstor.Image
+func (s *store) Upload(img imstor.Image, r io.Reader) (imstor.Image, error) {
+	key := img.ID
+
 	if !s.exists(key) {
-		return img, imstor.KeyNotFoundErr(key)
+		return imstor.Image{}, imstor.KeyNotFoundErr(key)
 	}
 
 	if s.uploaded(key) {
-		return img, imstor.AlreadyUploadedErr(key)
+		return imstor.Image{}, imstor.AlreadyUploadedErr(key)
 	}
 
 	log.Printf("%v: Reading", key)
 
 	data, err := ioutil.ReadAll(r)
 	if err != nil {
-		return img, err
+		return imstor.Image{}, err
 	}
 
 	if len(data) == 0 {
@@ -112,9 +113,13 @@ func (s *store) Upload(key imstor.ID, r io.Reader) (imstor.Image, error) {
 	log.Printf("%v: Storing", key)
 
 	entry := s.store[key]
+
+	origAdded := entry.Image.Added
+	img.Added = origAdded
+
 	entry.Data = data
+	entry.Image = img
 	s.store[key] = entry
-	img = entry.Image
 
 	log.Printf("%v: Full-size upload completed", key)
 
