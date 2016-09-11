@@ -151,7 +151,6 @@ func (d diskStore) Download(key imstor.ID) (io.ReadCloser, error) {
 		// Something something race condition
 		return nil, imstor.KeyNotFoundErr(key)
 	}
-	defer f.Close()
 
 	return f, err
 }
