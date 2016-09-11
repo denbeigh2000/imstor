@@ -1,6 +1,7 @@
 package thumbnailer
 
 import (
+	"fmt"
 	"image"
 	"io"
 
@@ -30,12 +31,19 @@ func (l Local) decode(src io.Reader) (image.Image, string, error) {
 }
 
 func (l Local) encode(src image.Image, codec string) (io.Reader, error) {
+	realCodec, err := imstor.GuessCodec(codec)
+	if err != nil {
+		return nil, err
+	}
+
 	var e encoder
-	switch codec {
-	case "png":
+	switch realCodec {
+	case imstor.PNG:
 		e = l.pngEncoder
-	case "jpg", "jpeg":
+	case imstor.JPEG:
 		e = l.jpegEncoder
+	default:
+		return nil, fmt.Errorf("Unsupported format %v", codec)
 	}
 
 	return e.Encode(src)
