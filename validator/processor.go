@@ -8,23 +8,16 @@ import (
 	"github.com/denbeigh2000/imstor"
 )
 
-func NewRequest(ID imstor.ID, data io.Reader) Request {
-	out := make(chan Response)
-
+func NewRequest(data io.Reader) Request {
 	return Request{
-		ID:   ID,
 		Data: data,
 
-		Response: out,
-		out:      out,
+		out: make(chan Response),
 	}
 }
 
 type Request struct {
 	Data io.Reader
-	imstor.ID
-
-	Response <-chan Response
 
 	out chan Response
 }
@@ -37,6 +30,15 @@ type Response struct {
 func (r Request) Respond(resp Response) {
 	r.out <- resp
 	close(r.out)
+}
+
+func (r Request) Response() Response {
+	resp, ok := <-r.out
+	if !ok {
+		panic("not ok")
+	}
+
+	return resp
 }
 
 type Processor interface {
@@ -110,9 +112,11 @@ func (p localProcessor) work() {
 			errStr = err.Error()
 		}
 
-		req.Respond(Response{
+		resp := Response{
 			ImageInfo: info,
 			Err:       errStr,
-		})
+		}
+
+		req.Respond(resp)
 	}
 }

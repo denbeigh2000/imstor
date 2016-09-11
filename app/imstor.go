@@ -72,7 +72,7 @@ type userImageAPI struct {
 func (a userImageAPI) validateImage(r io.Reader) (imstor.ImageInfo, error) {
 	req := validator.NewRequest(r)
 
-	err := a.Validator.Process(&req)
+	err := a.Validator.Process(req)
 	if err != nil {
 		return imstor.ImageInfo{}, err
 	}

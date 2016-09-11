@@ -4,6 +4,9 @@ import (
 	"image"
 	"io"
 
+	_ "image/jpeg"
+	_ "image/png"
+
 	"github.com/denbeigh2000/imstor"
 )
 
