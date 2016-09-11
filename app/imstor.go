@@ -1,11 +1,18 @@
 package imstor
 
 import (
+	"bytes"
+	"fmt"
 	"io"
+	"io/ioutil"
+	"log"
+	"time"
 
 	"github.com/denbeigh2000/imstor"
 	"github.com/denbeigh2000/imstor/thumbnailer"
 	"github.com/denbeigh2000/imstor/thumbnailer/thumbnailers"
+
+	"github.com/denbeigh2000/imstor/validator"
 )
 
 // Server is able to translate incoming requests to corresponding calls to the
@@ -20,7 +27,10 @@ func NewUserAPI(img imstor.Store, thumb imstor.ThumbnailStore) UserAPI {
 		img, thumb, 50,
 	)
 
-	imgAPI := userImageAPI{Store: img, Thumbnailer: thumber}
+	v := validator.NewLocal()
+	processor := validator.NewTimedLocalProcessor(v, 2*time.Minute, 150, 2)
+
+	imgAPI := userImageAPI{Store: img, Thumbnailer: thumber, Validator: processor}
 	thumbAPI := userThumbnailAPI{ThumbnailStore: thumb}
 
 	return userAPI{
@@ -55,6 +65,26 @@ type UserThumbnailAPI interface {
 type userImageAPI struct {
 	Store       imstor.Store
 	Thumbnailer thumbnailer.AsyncThumbnailer
+
+	Validator validator.Processor
+}
+
+func (a userImageAPI) validateImage(r io.Reader) (imstor.ImageInfo, error) {
+	req := validator.NewRequest(r)
+
+	err := a.Validator.Process(&req)
+	if err != nil {
+		return imstor.ImageInfo{}, err
+	}
+
+	log.Println("Waiting for validation response...")
+	resp := req.Response()
+	log.Printf("Received %v", resp)
+	if resp.Err != "" {
+		return imstor.ImageInfo{}, fmt.Errorf(resp.Err)
+	}
+
+	return resp.ImageInfo, nil
 }
 
 func (a userImageAPI) CreateImage(r io.Reader) (imstor.Image, error) {
@@ -63,7 +93,26 @@ func (a userImageAPI) CreateImage(r io.Reader) (imstor.Image, error) {
 		return imstor.Image{}, err
 	}
 
-	img, err := a.Store.Upload(imageID, r)
+	rBytes, err := ioutil.ReadAll(r)
+	if err != nil {
+		return imstor.Image{}, err
+	}
+
+	r = bytes.NewReader(rBytes)
+	info, err := a.validateImage(r)
+	if err != nil {
+		return imstor.Image{}, err
+	}
+
+	img := imstor.Image{
+		ID: imageID,
+		Metadata: imstor.Metadata{
+			ImageInfo: info,
+		},
+	}
+
+	r = bytes.NewReader(rBytes)
+	newImg, err := a.Store.Upload(img, r)
 	if err != nil {
 		return imstor.Image{}, err
 	}
@@ -73,7 +122,7 @@ func (a userImageAPI) CreateImage(r io.Reader) (imstor.Image, error) {
 		Size: imstor.Size{LongEdge: 300},
 	})
 
-	return img, nil
+	return newImg, nil
 }
 
 func (a userImageAPI) RetrieveImage(ID imstor.ID) (imstor.Image, error) {
