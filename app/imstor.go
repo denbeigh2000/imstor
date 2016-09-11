@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"time"
 
 	"github.com/denbeigh2000/imstor"
@@ -77,9 +76,7 @@ func (a userImageAPI) validateImage(r io.Reader) (imstor.ImageInfo, error) {
 		return imstor.ImageInfo{}, err
 	}
 
-	log.Println("Waiting for validation response...")
 	resp := req.Response()
-	log.Printf("Received %v", resp)
 	if resp.Err != "" {
 		return imstor.ImageInfo{}, fmt.Errorf(resp.Err)
 	}
